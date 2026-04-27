@@ -67,10 +67,17 @@ class SplashActivity : ComponentActivity() {
 
                 val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
 
-                fun navigateToWelcome(loc: String) {
-                    val intent = Intent(context, WelcomeActivity::class.java)
-                    intent.putExtra("user_location", loc)
-                    startActivity(intent)
+                val authManager = remember { com.example.silentpad.auth.SimpleAuthManager(context) }
+
+                fun navigateToNextScreen(loc: String) {
+                    if (authManager.isLoggedIn.value) {
+                        val intent = Intent(context, MainActivity::class.java)
+                        startActivity(intent)
+                    } else {
+                        val intent = Intent(context, WelcomeActivity::class.java)
+                        intent.putExtra("user_location", loc)
+                        startActivity(intent)
+                    }
                     finish()
                 }
 
@@ -185,7 +192,7 @@ class SplashActivity : ComponentActivity() {
                         }
                         SplashScreenState.Ready -> {
                             delay(1000)
-                            navigateToWelcome(location)
+                            navigateToNextScreen(location)
                         }
                     }
                 }

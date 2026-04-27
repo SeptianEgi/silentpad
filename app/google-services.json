@@ -1,33 +1,41 @@
 {
   "project_info": {
-    "project_number": "123456789",
-    "project_id": "silentpad-demo",
-    "storage_bucket": "silentpad-demo.appspot.com"
+    "project_number": "313657831667",
+    "project_id": "silentpad",
+    "storage_bucket": "silentpad.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:123456789:android:abcdef123456789",
+        "mobilesdk_app_id": "1:313657831667:android:d3ede0a3f2700a34ea8786",
         "android_client_info": {
           "package_name": "com.example.silentpad"
         }
       },
       "oauth_client": [
         {
-          "client_id": "123456789-abcdefghijklmnopqrstuvwxyz.apps.googleusercontent.com",
+          "client_id": "313657831667-h13adg3j0cjldqu104amcbir0pkqfuhf.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.silentpad",
+            "certificate_hash": "8c54072fc866b65ac7b8e3d1ca675cab84da5603"
+          }
+        },
+        {
+          "client_id": "313657831667-1c1jtr1s2cnpq5e5n7d76qg08lbh8a4e.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyDummy_Key_For_Demo_Purpose_Only"
+          "current_key": "AIzaSyAV8TLSgP8h-WUWY5D-QtYafwxATNM7p6M"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "123456789-abcdefghijklmnopqrstuvwxyz.apps.googleusercontent.com",
+              "client_id": "313657831667-1c1jtr1s2cnpq5e5n7d76qg08lbh8a4e.apps.googleusercontent.com",
               "client_type": 3
             }
           ]

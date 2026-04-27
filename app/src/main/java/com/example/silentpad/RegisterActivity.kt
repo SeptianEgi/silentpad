@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -95,7 +97,8 @@ fun RegisterScreen() {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 32.dp),
+                .padding(horizontal = 32.dp)
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top
         ) {
@@ -198,13 +201,11 @@ fun RegisterScreen() {
                             authManager.createUserWithEmailPassword(emailText, passwordText) { success, error ->
                                 if (success) {
                                     try {
-                                        // Save user data to SharedPreferences
+                                        // Save user data to SharedPreferences (only name and phone, Firebase handles auth)
                                         val prefs = context.getSharedPreferences("user_prefs", android.content.Context.MODE_PRIVATE)
                                         prefs.edit().apply {
-                                            putString("registered_email", emailText)
                                             putString("name", nameText)
                                             putString("phone", phoneText)
-                                            putString("password", passwordText)
                                             apply()
                                         }
                                         

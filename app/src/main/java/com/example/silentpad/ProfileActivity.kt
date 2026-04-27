@@ -29,6 +29,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.silentpad.ui.theme.SilentPadTheme
 import com.google.firebase.auth.FirebaseAuth
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.net.Uri
+import android.graphics.BitmapFactory
+import androidx.compose.ui.graphics.asImageBitmap
+import java.io.File
+import java.io.FileOutputStream
 
 val ProfileBackgroundTop = Color(0xFFA6C6FF)
 val ProfileBackgroundBottom = Color(0xFF050505)
@@ -76,6 +83,35 @@ fun ProfileScreen() {
     var editValue by remember { mutableStateOf("") }
     var showLogoutDialog by remember { mutableStateOf(false) }
     
+    // Profile picture state
+    var profileImagePath by remember { mutableStateOf(prefs.getString("profile_image", "") ?: "") }
+    
+    // Image picker launcher
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            try {
+                // Copy selected image to internal storage so we have permanent access
+                val inputStream = context.contentResolver.openInputStream(it)
+                if (inputStream != null) {
+                    val outputFile = File(context.filesDir, "profile_picture.jpg")
+                    val outputStream = FileOutputStream(outputFile)
+                    inputStream.copyTo(outputStream)
+                    inputStream.close()
+                    outputStream.close()
+                    
+                    // Save path to SharedPreferences and update state
+                    val newPath = outputFile.absolutePath
+                    prefs.edit().putString("profile_image", newPath).apply()
+                    profileImagePath = newPath
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Failed to save image", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+    
     // Save email to SharedPreferences if we got it from Firebase
     LaunchedEffect(firebaseEmail) {
         if (firebaseEmail.isNotEmpty() && registeredEmail != firebaseEmail) {
@@ -117,7 +153,11 @@ fun ProfileScreen() {
                 
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier.clickable {
+                        // Launch image picker when clicked
+                        imagePickerLauncher.launch("image/*")
+                    }
                 ) {
                     Box(
                         modifier = Modifier
@@ -128,12 +168,28 @@ fun ProfileScreen() {
                             .clip(CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.menu22_text),
-                            contentDescription = "Profile Photo",
-                            modifier = Modifier.size(150.dp),
-                            contentScale = ContentScale.Fit
-                        )
+                        // Check if we have a saved profile image
+                        val bitmap = remember(profileImagePath) {
+                            if (profileImagePath.isNotEmpty() && File(profileImagePath).exists()) {
+                                BitmapFactory.decodeFile(profileImagePath)
+                            } else null
+                        }
+                        
+                        if (bitmap != null) {
+                            Image(
+                                bitmap = bitmap.asImageBitmap(),
+                                contentDescription = "Profile Photo",
+                                modifier = Modifier.size(150.dp).clip(CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Image(
+                                painter = painterResource(id = R.drawable.menu22_text),
+                                contentDescription = "Profile Photo",
+                                modifier = Modifier.size(150.dp),
+                                contentScale = ContentScale.Fit
+                            )
+                        }
                     }
                     
                     Spacer(modifier = Modifier.height(12.dp))
@@ -364,14 +420,11 @@ fun ProfileScreen() {
             confirmButton = {
                 TextButton(
                     onClick = {
-                        val savedPassword = prefs.getString("password", "")
+                        val firebaseUser = FirebaseAuth.getInstance().currentUser
                         
                         when {
                             currentPassword.isEmpty() || newPassword.isEmpty() || confirmPassword.isEmpty() -> {
                                 Toast.makeText(context, "Please fill all fields", Toast.LENGTH_SHORT).show()
-                            }
-                            currentPassword != savedPassword -> {
-                                Toast.makeText(context, "Current password is incorrect", Toast.LENGTH_SHORT).show()
                             }
                             newPassword != confirmPassword -> {
                                 Toast.makeText(context, "New passwords don't match", Toast.LENGTH_SHORT).show()
@@ -379,10 +432,18 @@ fun ProfileScreen() {
                             newPassword.length < 6 -> {
                                 Toast.makeText(context, "Password must be at least 6 characters", Toast.LENGTH_SHORT).show()
                             }
+                            firebaseUser != null -> {
+                                firebaseUser.updatePassword(newPassword).addOnCompleteListener { task ->
+                                    if (task.isSuccessful) {
+                                        Toast.makeText(context, "Password changed successfully", Toast.LENGTH_SHORT).show()
+                                        showPasswordDialog = false
+                                    } else {
+                                        Toast.makeText(context, "Failed to change password: ${task.exception?.message}", Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            }
                             else -> {
-                                prefs.edit().putString("password", newPassword).apply()
-                                Toast.makeText(context, "Password changed successfully", Toast.LENGTH_SHORT).show()
-                                showPasswordDialog = false
+                                Toast.makeText(context, "You must be logged in to change password", Toast.LENGTH_SHORT).show()
                             }
                         }
                     }

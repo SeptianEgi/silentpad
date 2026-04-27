@@ -21,9 +21,12 @@
     <string name="forgot_password">Lupa Password?</string>
     
     <!-- Social Authentication -->
-    <string name="facebook_app_id">1234567890123456</string>
-    <string name="fb_login_protocol_scheme">fb1234567890123456</string>
-    <string name="facebook_client_token">abc123def456ghi789jkl012mno345pqr678</string>
+    <string name="facebook_app_id">MASUKAN_FACEBOOK_APP_ID_DISINI</string>
+    <string name="fb_login_protocol_scheme">fbMASUKAN_FACEBOOK_APP_ID_DISINI</string>
+    <string name="facebook_client_token">MASUKAN_FACEBOOK_CLIENT_TOKEN_DISINI</string>
+    
+    <!-- Google Authentication -->
+    <string name="google_web_client_id">313657831667-1c1jtr1s2cnpq5e5n7d76qg08lbh8a4e.apps.googleusercontent.com</string>
     
     <!-- Main Activity -->
     <string name="add_note">Tambah Catatan</string>

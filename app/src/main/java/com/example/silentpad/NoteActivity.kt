@@ -1,6 +1,9 @@
 package com.example.silentpad
 
 import android.content.Context
+import android.content.Intent
+import android.content.ClipboardManager
+import android.content.ClipData
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -14,6 +17,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -123,6 +127,11 @@ fun NoteScreen() {
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showBackDialog by remember { mutableStateOf(false) }
     var hasUnsavedChanges by remember { mutableStateOf(false) }
+    
+    val silentPadAi = remember { SilentPadAi() }
+    val coroutineScope = rememberCoroutineScope()
+    var isAiLoading by remember { mutableStateOf(false) }
+    var showMoreOptionsMenu by remember { mutableStateOf(false) }
 
     // Track changes
     LaunchedEffect(title, noteContent) {
@@ -270,9 +279,9 @@ fun NoteScreen() {
                     shape = RoundedCornerShape(24.dp),
                     colors = CardDefaults.cardColors(containerColor = NoteBackgroundColor)
                 ) {
-                    Box(
+                    Row(
                         modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         BasicTextField(
                             value = title,
@@ -285,8 +294,8 @@ fun NoteScreen() {
                                 fontFamily = FontFamily.SansSerif
                             ),
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp),
+                                .weight(1f)
+                                .padding(start = 16.dp),
                             singleLine = true,
                             decorationBox = { innerTextField ->
                                 Box(
@@ -305,6 +314,38 @@ fun NoteScreen() {
                                 }
                             }
                         )
+                        
+                        // AI Generate Title Button
+                        IconButton(
+                            onClick = {
+                                if (noteContent.isNotBlank()) {
+                                    isAiLoading = true
+                                    coroutineScope.launch {
+                                        title = silentPadAi.generateTitle(noteContent)
+                                        isAiLoading = false
+                                        Toast.makeText(context, "Wolf's Whisper received ✨", Toast.LENGTH_SHORT).show()
+                                    }
+                                } else {
+                                    Toast.makeText(context, "Write a note first to generate a title", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            modifier = Modifier.padding(end = 4.dp)
+                        ) {
+                            if (isAiLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    color = TitleTextColor,
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.AutoAwesome,
+                                    contentDescription = "Wolf's Whisper (Auto Title)",
+                                    tint = TitleTextColor,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -454,6 +495,45 @@ fun NoteScreen() {
                 .padding(end = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // AI Wolf's Inspiration Button (Continue Writing)
+            FloatingActionButton(
+                onClick = { 
+                    if (!isAiLoading) {
+                        isAiLoading = true
+                        Toast.makeText(context, "Wolf is listening...", Toast.LENGTH_SHORT).show()
+                        coroutineScope.launch {
+                            val continuation = silentPadAi.continueWriting(noteContent)
+                            if (noteContent.isNotEmpty() && !noteContent.endsWith(" ") && !noteContent.endsWith("\n")) {
+                                noteContent += " "
+                            }
+                            noteContent += continuation
+                            isAiLoading = false
+                        }
+                    }
+                },
+                containerColor = Color(0xFFFFC107), // Golden color for AI
+                contentColor = Color(0xFF000514),
+                modifier = Modifier.size(52.dp),
+                elevation = FloatingActionButtonDefaults.elevation(
+                    defaultElevation = 6.dp,
+                    pressedElevation = 8.dp
+                )
+            ) {
+                if (isAiLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = Color(0xFF000514),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.AutoAwesome,
+                        contentDescription = "Wolf's Inspiration (Continue Writing)",
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+
             // Delete Button dengan elevation
             FloatingActionButton(
                 onClick = { showDeleteDialog = true },
@@ -475,7 +555,12 @@ fun NoteScreen() {
             // Share Button dengan elevation
             FloatingActionButton(
                 onClick = {
-                    Toast.makeText(context, "Share functionality", Toast.LENGTH_SHORT).show()
+                    val shareIntent = Intent().apply {
+                        action = Intent.ACTION_SEND
+                        putExtra(Intent.EXTRA_TEXT, "${title.ifEmpty { "Untitled" }}\n\n$noteContent")
+                        type = "text/plain"
+                    }
+                    context.startActivity(Intent.createChooser(shareIntent, "Share note via"))
                 },
                 containerColor = Color(0xFF66BB6A),
                 contentColor = Color.White,
@@ -493,23 +578,54 @@ fun NoteScreen() {
             }
 
             // More Options Button dengan elevation
-            FloatingActionButton(
-                onClick = {
-                    Toast.makeText(context, "More options", Toast.LENGTH_SHORT).show()
-                },
-                containerColor = Color(0xFFAB47BC),
-                contentColor = Color.White,
-                modifier = Modifier.size(52.dp),
-                elevation = FloatingActionButtonDefaults.elevation(
-                    defaultElevation = 6.dp,
-                    pressedElevation = 8.dp
-                )
-            ) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = "More Options",
-                    modifier = Modifier.size(24.dp)
-                )
+            Box {
+                FloatingActionButton(
+                    onClick = { showMoreOptionsMenu = true },
+                    containerColor = Color(0xFFAB47BC),
+                    contentColor = Color.White,
+                    modifier = Modifier.size(52.dp),
+                    elevation = FloatingActionButtonDefaults.elevation(
+                        defaultElevation = 6.dp,
+                        pressedElevation = 8.dp
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "More Options",
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = showMoreOptionsMenu,
+                    onDismissRequest = { showMoreOptionsMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Copy to Clipboard") },
+                        onClick = {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            val clip = ClipData.newPlainText("Note", "${title.ifEmpty { "Untitled" }}\n\n$noteContent")
+                            clipboard.setPrimaryClip(clip)
+                            Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
+                            showMoreOptionsMenu = false
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Default.ContentCopy, contentDescription = null)
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Clear Note") },
+                        onClick = {
+                            title = ""
+                            noteContent = ""
+                            showMoreOptionsMenu = false
+                            Toast.makeText(context, "Note cleared", Toast.LENGTH_SHORT).show()
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Default.Clear, contentDescription = null)
+                        }
+                    )
+                }
             }
         }
     }

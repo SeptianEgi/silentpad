@@ -3,6 +3,7 @@ package com.example.silentpad.auth
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import com.example.silentpad.R
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.MutableState
@@ -36,7 +37,7 @@ class AuthManager(private val context: Context) {
     init {
         // Configure Google Sign In
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestIdToken("123456789-abcdefghijklmnopqrstuvwxyz.apps.googleusercontent.com") // Replace with actual client ID
+            .requestIdToken(context.getString(R.string.google_web_client_id)) // Requires actual client ID from strings.xml
             .requestEmail()
             .build()
         
@@ -114,7 +115,7 @@ class AuthManager(private val context: Context) {
         authError.value = null
         
         LoginManager.getInstance().logInWithReadPermissions(
-            context as androidx.fragment.app.FragmentActivity,
+            context as android.app.Activity,
             listOf("email", "public_profile")
         )
     }

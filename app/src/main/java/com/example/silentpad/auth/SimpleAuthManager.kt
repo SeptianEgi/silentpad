@@ -1,12 +1,11 @@
 package com.example.silentpad.auth
 
 import android.content.Context
-import android.content.SharedPreferences
 import androidx.compose.runtime.mutableStateOf
+import com.google.firebase.auth.FirebaseAuth
 
 class SimpleAuthManager(private val context: Context) {
-    private val prefs: SharedPreferences = 
-        context.getSharedPreferences("silentpad_auth", Context.MODE_PRIVATE)
+    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
     
     val isLoading = mutableStateOf(false)
     val authError = mutableStateOf<String?>(null)
@@ -15,9 +14,9 @@ class SimpleAuthManager(private val context: Context) {
     
     init {
         // Check if user is already logged in
-        val savedEmail = prefs.getString("logged_in_email", null)
-        if (savedEmail != null) {
-            currentUser.value = savedEmail
+        val firebaseUser = auth.currentUser
+        if (firebaseUser != null) {
+            currentUser.value = firebaseUser.email
             isLoggedIn.value = true
         }
     }
@@ -42,24 +41,19 @@ class SimpleAuthManager(private val context: Context) {
                 return
             }
             
-            // Check if user already exists
-            if (prefs.contains("user_$email")) {
-                authError.value = "Account with this email already exists"
-                isLoading.value = false
-                onComplete(false, "Account with this email already exists")
-                return
-            }
-            
-            // Save user credentials
-            prefs.edit()
-                .putString("user_$email", password)
-                .putString("logged_in_email", email)
-                .apply()
-            
-            currentUser.value = email
-            isLoggedIn.value = true
-            isLoading.value = false
-            onComplete(true, null)
+            auth.createUserWithEmailAndPassword(email, password)
+                .addOnCompleteListener { task ->
+                    isLoading.value = false
+                    if (task.isSuccessful) {
+                        currentUser.value = auth.currentUser?.email
+                        isLoggedIn.value = true
+                        onComplete(true, null)
+                    } else {
+                        val errorMessage = task.exception?.message ?: "Registration failed"
+                        authError.value = errorMessage
+                        onComplete(false, errorMessage)
+                    }
+                }
             
         } catch (e: Exception) {
             authError.value = "Registration failed: ${e.message}"
@@ -88,31 +82,19 @@ class SimpleAuthManager(private val context: Context) {
                 return
             }
             
-            // Check if user exists and password matches
-            val savedPassword = prefs.getString("user_$email", null)
-            if (savedPassword == null) {
-                authError.value = "No account found with this email"
-                isLoading.value = false
-                onComplete(false, "No account found with this email")
-                return
-            }
-            
-            if (savedPassword != password) {
-                authError.value = "Incorrect password"
-                isLoading.value = false
-                onComplete(false, "Incorrect password")
-                return
-            }
-            
-            // Login successful
-            prefs.edit()
-                .putString("logged_in_email", email)
-                .apply()
-            
-            currentUser.value = email
-            isLoggedIn.value = true
-            isLoading.value = false
-            onComplete(true, null)
+            auth.signInWithEmailAndPassword(email, password)
+                .addOnCompleteListener { task ->
+                    isLoading.value = false
+                    if (task.isSuccessful) {
+                        currentUser.value = auth.currentUser?.email
+                        isLoggedIn.value = true
+                        onComplete(true, null)
+                    } else {
+                        val errorMessage = task.exception?.message ?: "Login failed"
+                        authError.value = errorMessage
+                        onComplete(false, errorMessage)
+                    }
+                }
             
         } catch (e: Exception) {
             authError.value = "Login failed: ${e.message}"
@@ -122,10 +104,7 @@ class SimpleAuthManager(private val context: Context) {
     }
     
     fun signOut() {
-        prefs.edit()
-            .remove("logged_in_email")
-            .apply()
-        
+        auth.signOut()
         currentUser.value = null
         isLoggedIn.value = false
         authError.value = null

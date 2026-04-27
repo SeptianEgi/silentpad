@@ -21,6 +21,14 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        val properties = java.util.Properties()
+        val localPropertiesFile = project.rootProject.file("local.properties")
+        if (localPropertiesFile.exists()) {
+            properties.load(java.io.FileInputStream(localPropertiesFile))
+        }
+        val geminiApiKey = properties.getProperty("GEMINI_API_KEY") ?: ""
+        buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
     }
 
     buildTypes {
@@ -44,6 +52,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     packaging {
         resources {
@@ -85,16 +94,19 @@ dependencies {
     implementation(libs.play.services.location)
     
     // Firebase Auth & Google Sign-In
-    implementation("com.google.firebase:firebase-auth:22.3.0")
-    implementation("com.google.android.gms:play-services-auth:20.7.0")
-    implementation("com.google.firebase:firebase-bom:32.6.0")
+    implementation(libs.firebase.auth)
+    implementation(libs.play.services.auth)
+    implementation(platform(libs.firebase.bom))
     
     // Facebook Login
-    implementation("com.facebook.android:facebook-login:16.2.0")
+    implementation(libs.facebook.login)
     
     // Gson for JSON serialization
-    implementation("com.google.code.gson:gson:2.10.1")
-    
+    implementation(libs.gson)
+
+    // Google Gemini AI
+    implementation(libs.generativeai)
+
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)

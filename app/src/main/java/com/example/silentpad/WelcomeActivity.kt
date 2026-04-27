@@ -12,6 +12,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import com.example.silentpad.auth.AuthManager
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -28,23 +33,51 @@ import com.example.silentpad.ui.theme.SilentPadColors
 import com.example.silentpad.ui.theme.SilentPadButton
 import com.example.silentpad.ui.theme.SilentPadTitle
 import com.example.silentpad.ui.theme.BackButton
+import com.example.silentpad.ui.theme.SocialButton
 
 class WelcomeActivity : ComponentActivity() {
+    
+    // Create AuthManager at activity level to access it in onActivityResult
+    private lateinit var authManager: AuthManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        authManager = AuthManager(this)
         val location = intent.getStringExtra("user_location") ?: "Unknown"
         
         setContent {
             SilentPadTheme {
-                WelcomeScreen(location = location)
+                WelcomeScreen(location = location, authManager = authManager)
             }
+        }
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (::authManager.isInitialized) {
+            authManager.onActivityResult(requestCode, resultCode, data)
         }
     }
 }
 
 @Composable
-fun WelcomeScreen(location: String) {
+fun WelcomeScreen(location: String, authManager: AuthManager) {
     val context = LocalContext.current
+    
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        authManager.handleGoogleSignInResult(result.data)
+    }
+
+    LaunchedEffect(authManager.currentUser.value) {
+        if (authManager.currentUser.value != null) {
+            val intent = Intent(context, MainActivity::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            context.startActivity(intent)
+        }
+    }
     
     Box(modifier = Modifier.fillMaxSize()) {
         // Pure Black Background
@@ -141,6 +174,46 @@ fun WelcomeScreen(location: String) {
                     context.startActivity(intent)
                 }
             )
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            // Social Logins (Google & Facebook)
+            Row(
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                SocialButton(
+                    onClick = { authManager.signInWithGoogle(googleSignInLauncher) },
+                    size = 56.dp,
+                    backgroundColor = Color.White,
+                    textColor = Color.Black,
+                    iconRes = R.drawable.ic_google,
+                    text = "Google Login"
+                )
+                
+                Spacer(modifier = Modifier.width(24.dp))
+                
+                SocialButton(
+                    onClick = { authManager.signInWithFacebook() },
+                    size = 56.dp,
+                    backgroundColor = Color.White,
+                    textColor = Color.Black,
+                    iconRes = R.drawable.ic_facebook,
+                    text = "Facebook Login"
+                )
+            }
+            
+            // Show error if any
+            authManager.authError.value?.let { error ->
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = error,
+                    color = Color.Red,
+                    fontSize = 14.sp,
+                    textAlign = TextAlign.Center
+                )
+            }
             
             Spacer(modifier = Modifier.height(60.dp))
         }
