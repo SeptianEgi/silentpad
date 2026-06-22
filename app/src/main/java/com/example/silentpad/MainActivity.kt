@@ -482,12 +482,15 @@ fun NoteItemCard(
     val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy • HH:mm", Locale.getDefault()) }
     val dateString = remember(note.timestamp) { dateFormat.format(Date(note.timestamp)) }
     
+    val safeColor = note.color and 0xFFFFFFFFL
+    val finalColor = if (safeColor == 0L) 0xFFA9CFFFL else safeColor
+    
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onNoteClick),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = PeriwinkleBlue),
+        colors = CardDefaults.cardColors(containerColor = Color(finalColor)),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Row(
@@ -520,12 +523,28 @@ fun NoteItemCard(
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                 }
-                Text(
-                    text = dateString,
-                    fontSize = 12.sp,
-                    color = CardTextBlack.copy(alpha = 0.5f),
-                    fontFamily = FontFamily.SansSerif
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = dateString,
+                        fontSize = 12.sp,
+                        color = CardTextBlack.copy(alpha = 0.5f),
+                        fontFamily = FontFamily.SansSerif
+                    )
+                    
+                    if (note.author.isNotEmpty()) {
+                        Text(
+                            text = "By: ${note.author}",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = CardTextBlack.copy(alpha = 0.6f),
+                            fontFamily = FontFamily.SansSerif
+                        )
+                    }
+                }
             }
         }
     }

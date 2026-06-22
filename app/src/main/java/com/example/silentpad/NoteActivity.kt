@@ -10,6 +10,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,6 +28,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -51,6 +54,8 @@ data class Note(
     val id: Long = System.currentTimeMillis(),
     val title: String = "",
     val content: String = "",
+    val author: String = "",
+    val color: Long = 0xFFA9CFFFL, // Default blue color
     val timestamp: Long = System.currentTimeMillis()
 )
 
@@ -122,6 +127,11 @@ fun NoteScreen() {
     // State untuk note content
     var title by remember { mutableStateOf(existingNote?.title ?: "") }
     var noteContent by remember { mutableStateOf(existingNote?.content ?: "") }
+    var author by remember { mutableStateOf(existingNote?.author ?: "") }
+    var selectedColor by remember { 
+        val c = (existingNote?.color ?: 0xFFA9CFFFL) and 0xFFFFFFFFL
+        mutableStateOf(Color(if (c == 0L) 0xFFA9CFFFL else c))
+    }
     var currentNoteId by remember { mutableStateOf(existingNote?.id ?: System.currentTimeMillis()) }
     
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -134,9 +144,13 @@ fun NoteScreen() {
     var showMoreOptionsMenu by remember { mutableStateOf(false) }
 
     // Track changes
-    LaunchedEffect(title, noteContent) {
+    LaunchedEffect(title, noteContent, author, selectedColor) {
+        val c = (existingNote?.color ?: 0xFFA9CFFFL) and 0xFFFFFFFFL
+        val originalColor = if (c == 0L) 0xFFA9CFFFL else c
         hasUnsavedChanges = title != (existingNote?.title ?: "") || 
-                           noteContent != (existingNote?.content ?: "")
+                           noteContent != (existingNote?.content ?: "") ||
+                           author != (existingNote?.author ?: "") ||
+                           (selectedColor.toArgb().toLong() and 0xFFFFFFFFL) != originalColor
     }
 
     // Fungsi untuk save note
@@ -146,6 +160,8 @@ fun NoteScreen() {
                 id = currentNoteId,
                 title = title.ifEmpty { "Untitled" },
                 content = noteContent,
+                author = author.ifEmpty { "Anonymous" },
+                color = selectedColor.toArgb().toLong() and 0xFFFFFFFFL,
                 timestamp = System.currentTimeMillis()
             )
             noteManager.saveNote(note)
@@ -245,17 +261,18 @@ fun NoteScreen() {
             ) {
                 // Back Button dengan shadow
                 Surface(
-                    modifier = Modifier.size(50.dp),
+                    modifier = Modifier
+                        .size(50.dp)
+                        .clickable {
+                            if (hasUnsavedChanges) {
+                                showBackDialog = true
+                            } else {
+                                activity?.finish()
+                            }
+                        },
                     shape = CircleShape,
                     color = ButtonCircleColor,
-                    shadowElevation = 4.dp,
-                    onClick = {
-                        if (hasUnsavedChanges) {
-                            showBackDialog = true
-                        } else {
-                            (context as? ComponentActivity)?.finish()
-                        }
-                    }
+                    shadowElevation = 4.dp
                 ) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -277,7 +294,7 @@ fun NoteScreen() {
                         .height(48.dp)
                         .padding(horizontal = 12.dp),
                     shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = NoteBackgroundColor)
+                    colors = CardDefaults.cardColors(containerColor = selectedColor)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxSize(),
@@ -351,11 +368,12 @@ fun NoteScreen() {
 
                 // Save Button dengan shadow dan visual feedback
                 Surface(
-                    modifier = Modifier.size(50.dp),
+                    modifier = Modifier
+                        .size(50.dp)
+                        .clickable { saveNote() },
                     shape = CircleShape,
                     color = if (hasUnsavedChanges) SaveButtonColor else SaveButtonColor.copy(alpha = 0.6f),
-                    shadowElevation = if (hasUnsavedChanges) 6.dp else 2.dp,
-                    onClick = { saveNote() }
+                    shadowElevation = if (hasUnsavedChanges) 6.dp else 2.dp
                 ) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -371,7 +389,92 @@ fun NoteScreen() {
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Author Input Field
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(40.dp)
+                    .padding(horizontal = 40.dp),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = selectedColor.copy(alpha = 0.8f))
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = "Author",
+                        tint = TitleTextColor,
+                        modifier = Modifier.padding(start = 12.dp).size(18.dp)
+                    )
+                    BasicTextField(
+                        value = author,
+                        onValueChange = { author = it },
+                        textStyle = TextStyle(
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = TitleTextColor,
+                            fontFamily = FontFamily.SansSerif
+                        ),
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 8.dp),
+                        singleLine = true,
+                        decorationBox = { innerTextField ->
+                            Box(contentAlignment = Alignment.CenterStart) {
+                                if (author.isEmpty()) {
+                                    Text(
+                                        text = "By who? (Author)",
+                                        fontSize = 14.sp,
+                                        color = TitleTextColor.copy(alpha = 0.5f)
+                                    )
+                                }
+                                innerTextField()
+                            }
+                        }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Color Selector
+            val presetColors = listOf(
+                Color(0xFFA9CFFF), // Original Blue
+                Color(0xFFFFCFD2), // Pink
+                Color(0xFFCFEBCF), // Green
+                Color(0xFFFDF4FF), // White-Purple
+                Color(0xFFFFE0AC), // Peach
+                Color(0xFFD4E157), // Lime
+                Color(0xFF81D4FA)  // Sky Blue
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                presetColors.forEach { color ->
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .padding(4.dp)
+                            .clip(CircleShape)
+                            .background(color)
+                            .border(
+                                width = if (selectedColor == color) 2.dp else 0.dp,
+                                color = if (selectedColor == color) Color.White else Color.Transparent,
+                                shape = CircleShape
+                            )
+                            .clickable { selectedColor = color }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Note content area - Clean design without lines
             Card(
@@ -379,7 +482,7 @@ fun NoteScreen() {
                     .fillMaxWidth()
                     .weight(1f),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = NoteBackgroundColor),
+                colors = CardDefaults.cardColors(containerColor = selectedColor),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Box(
@@ -434,17 +537,17 @@ fun NoteScreen() {
                 Surface(
                     modifier = Modifier
                         .weight(1f)
-                        .height(50.dp),
+                        .height(50.dp)
+                        .clickable {
+                            if (hasUnsavedChanges) {
+                                showBackDialog = true
+                            } else {
+                                activity?.finish()
+                            }
+                        },
                     shape = RoundedCornerShape(25.dp),
                     color = Color(0xFF6B6B6B),
-                    shadowElevation = 4.dp,
-                    onClick = {
-                        if (hasUnsavedChanges) {
-                            showBackDialog = true
-                        } else {
-                            activity?.finish()
-                        }
-                    }
+                    shadowElevation = 4.dp
                 ) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -466,11 +569,11 @@ fun NoteScreen() {
                 Surface(
                     modifier = Modifier
                         .weight(1f)
-                        .height(50.dp),
+                        .height(50.dp)
+                        .clickable { saveNote() },
                     shape = RoundedCornerShape(25.dp),
                     color = ButtonCircleColor,
-                    shadowElevation = if (hasUnsavedChanges) 6.dp else 4.dp,
-                    onClick = { saveNote() }
+                    shadowElevation = if (hasUnsavedChanges) 6.dp else 4.dp
                 ) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
